@@ -1,0 +1,251 @@
+---
+import figlet from 'figlet';
+
+const asciiArt = figlet.textSync('> NaN', {
+  font: 'Slant',
+});
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+    <meta name="theme-color" content="#000000" />
+		<title>NaN</title>
+    <link rel="manifest" href="/manifest.json">
+	</head>
+	<body>
+    <div id="loading">
+      <div class="loading-content">
+        <pre>{asciiArt}</pre>
+        <div id="loading-text">Loading Slot 1...</div>
+      </div>
+    </div>
+    <textarea id="notepad" spellcheck="false" placeholder="Start typing..."></textarea>
+    <div id="status">Saved</div>
+
+    <script is:inline>
+      const loader = document.getElementById('loading');
+      const loaderText = document.getElementById('loading-text');
+      
+      const toggleLoader = (show) => {
+        if (show) {
+          loader.classList.remove('hidden');
+        } else {
+          loader.classList.add('hidden');
+        }
+      };
+
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          toggleLoader(false);
+        }, 800); 
+      });
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+
+      const notepad = document.getElementById('notepad');
+      const status = document.getElementById('status');
+      
+      let currentSlot = 1;
+      const getStorageKey = (slot) => slot === 1 ? 'simple-note-content' : `simple-note-content-${slot}`;
+
+      const showStatus = (text, duration = 1000) => {
+        status.textContent = text;
+        status.style.opacity = '1';
+        clearTimeout(window.statusTimeout);
+        window.statusTimeout = setTimeout(() => {
+          status.style.opacity = '0';
+        }, duration);
+      };
+
+      const loadSlot = (slot) => {
+        loaderText.textContent = `Loading Slot ${slot}...`;
+        toggleLoader(true);
+
+        setTimeout(() => {
+          currentSlot = slot;
+          localStorage.setItem('current-slot', slot);
+          const key = getStorageKey(slot);
+          notepad.value = localStorage.getItem(key) || '';
+          showStatus(`Loaded Slot ${slot}`);
+          toggleLoader(false);
+        }, 800);
+      };
+
+      const storedSlot = localStorage.getItem('current-slot');
+      currentSlot = storedSlot ? parseInt(storedSlot) : 1;
+      
+      if (currentSlot !== 1) {
+        loaderText.textContent = `Loading Slot ${currentSlot}...`;
+      }
+      
+      notepad.value = localStorage.getItem(getStorageKey(currentSlot)) || '';
+
+      notepad.addEventListener('input', () => {
+        const key = getStorageKey(currentSlot);
+        localStorage.setItem(key, notepad.value);
+        
+        status.textContent = 'Saving...';
+        status.style.opacity = '1';
+        
+        clearTimeout(window.saveTimeout);
+        window.saveTimeout = setTimeout(() => {
+          showStatus(`Saved (Slot ${currentSlot})`);
+        }, 500);
+      });
+
+      notepad.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const cursorPosition = notepad.selectionStart;
+          const text = notepad.value;
+          const currentLineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
+          const currentLine = text.substring(currentLineStart, cursorPosition);
+          
+          const unorderedMatch = currentLine.match(/^(\s*)([\*\-\+])\s+(.*)$/);
+          const orderedMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+
+          if (unorderedMatch || orderedMatch) {
+            const content = unorderedMatch ? unorderedMatch[3] : orderedMatch[3];
+            
+            if (!content.trim()) {
+              e.preventDefault();
+              const newText = text.substring(0, currentLineStart) + text.substring(cursorPosition);
+              notepad.value = newText;
+              notepad.selectionStart = notepad.selectionEnd = currentLineStart;
+            } else {
+              e.preventDefault();
+              let insertion = '\n';
+              if (unorderedMatch) {
+                insertion += unorderedMatch[1] + unorderedMatch[2] + ' ';
+              } else {
+                const number = parseInt(orderedMatch[2]);
+                insertion += orderedMatch[1] + (number + 1) + '. ';
+              }
+
+              const newText = text.substring(0, cursorPosition) + insertion + text.substring(cursorPosition);
+              notepad.value = newText;
+              notepad.selectionStart = notepad.selectionEnd = cursorPosition + insertion.length;
+            }
+            notepad.dispatchEvent(new Event('input'));
+          }
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+          const isDigit = (e.key >= '0' && e.key <= '9');
+          const isDigitCode = /^Digit[0-9]$/.test(e.code) || /^Numpad[0-9]$/.test(e.code);
+
+          if (isDigit || isDigitCode) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            
+            let num = parseInt(e.key);
+            if (isNaN(num)) {
+              if (e.code.startsWith('Digit')) {
+                num = parseInt(e.code.slice(5));
+              } else if (e.code.startsWith('Numpad')) {
+                num = parseInt(e.code.slice(6));
+              }
+            }
+
+            if (!isNaN(num)) {
+              const slot = num === 0 ? 10 : num;
+              loadSlot(slot);
+            }
+          }
+        }
+      }, true);
+    </script>
+
+    <style>
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: black;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s ease-out;
+      }
+
+      .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      
+      #loading.hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.5s;
+      }
+      
+      #loading pre {
+        font-family: monospace;
+        font-weight: bold;
+        line-height: 1.2;
+        margin: 0;
+        text-align: left;
+      }
+
+      #loading-text {
+        margin-top: 2rem;
+        font-family: monospace;
+        font-size: 14px;
+        color: #888;
+      }
+
+      :global(body) {
+        background-color: black;
+        color: white;
+        font-family: monospace;
+        font-size: 12px;
+        margin: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+      }
+
+      #notepad {
+        background-color: black;
+        color: white;
+        font-family: monospace;
+        font-size: 12px;
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        resize: none;
+        padding: 1rem;
+        box-sizing: border-box;
+      }
+
+      #status {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        font-size: 10px;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+        color: #666;
+      }
+    </style>
+	</body>
+</html>

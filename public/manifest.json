@@ -1,0 +1,13 @@
+{
+  "name": "Simple Notes",
+  "short_name": "Notes",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "description": "A simple black and white notepad.",
+  "icons": [{
+    "src": "favicon.svg",
+    "sizes": "512x512",
+    "type": "image/svg+xml"
+  }]
+}
