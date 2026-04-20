@@ -1,4 +1,4 @@
-# NaN - Not-A-Note
+# NaN - Not-Another-Notepad
 very minimal notes app
 # features
 ctrl+[1-0] for different save slots
